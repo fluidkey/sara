@@ -11,16 +11,21 @@ import {
   Grid,
   NumberInput,
   Progress,
+  Select,
   Switch,
   TextInput,
 } from "@mantine/core";
 import { IconArrowLeft, IconList } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { StepContent } from "@components/StepContent";
 import { CopyWithCheckButton } from "@components/common/CopyButton";
 
+import {
+  AUTO_EARN_PROFILES,
+  AutoEarnProfileId,
+} from "@configs/autoEarnProfiles";
 import {
   FluidKeyMetaStealthKeyPair,
   FluidKeyStealthSafeAddressGenerationParams,
@@ -42,6 +47,9 @@ interface ComponentProps {
   onBack: () => void;
 }
 
+const CUSTOM_PROFILE_ID = "custom" as const;
+type ProfileSelectValue = AutoEarnProfileId | typeof CUSTOM_PROFILE_ID;
+
 export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
   const [openSettings, setOpenSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +63,8 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
       safeVersion: "1.3.0",
       useDefaultAddress: true,
       exportPrivateKeys: true,
+      initializerTo: undefined,
+      initializerData: undefined,
     });
   const [stealthAddressData, setStealthAddressData] = useState<string[][]>([
     defaultExportHeaders,
@@ -62,9 +72,70 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
 
   const handleSettingsChange = (
     setting: keyof FluidKeyStealthSafeAddressGenerationParams,
-    value: string | number | boolean
+    value: string | number | boolean | undefined
   ) => {
-    setSettings((prev) => ({ ...prev, [setting]: value }));
+    let normalizedValue = value;
+    if (
+      (setting === "initializerTo" || setting === "initializerData") &&
+      typeof value === "string" &&
+      value.trim() === ""
+    ) {
+      normalizedValue = undefined;
+    }
+    setSettings((prev) => ({ ...prev, [setting]: normalizedValue }));
+  };
+
+  const matchedProfile = useMemo(() => {
+    return AUTO_EARN_PROFILES.find(
+      (profile) =>
+        profile.initializerTo === settings.initializerTo &&
+        profile.initializerData === settings.initializerData
+    );
+  }, [settings.initializerData, settings.initializerTo]);
+
+  const selectedProfileId: ProfileSelectValue = useMemo(() => {
+    if (matchedProfile) {
+      return matchedProfile.id;
+    }
+    if (!settings.initializerTo && !settings.initializerData) {
+      return "manual";
+    }
+    return CUSTOM_PROFILE_ID;
+  }, [matchedProfile, settings.initializerData, settings.initializerTo]);
+
+  const profileOptions = useMemo(
+    () => [
+      ...AUTO_EARN_PROFILES.map((profile) => ({
+        value: profile.id,
+        label: profile.label,
+      })),
+    ],
+    []
+  );
+
+  const handleProfileSelect = (value: string | null) => {
+    if (!value) {
+      return;
+    }
+
+    if (value === CUSTOM_PROFILE_ID) {
+      // Keep whatever custom values are present.
+      return;
+    }
+
+    const selectedProfile = AUTO_EARN_PROFILES.find(
+      (profile) => profile.id === value
+    );
+
+    if (!selectedProfile) {
+      return;
+    }
+
+    setSettings((prev) => ({
+      ...prev,
+      initializerTo: selectedProfile.initializerTo,
+      initializerData: selectedProfile.initializerData,
+    }));
   };
 
   const recoverStealthAccounts = async () => {
@@ -161,6 +232,23 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
         Click on the button below to initiate the recovery of stealth addresses.
         Feel free to customize additional settings as needed for a personalized
         experience.
+        <Box
+          style={{
+            marginTop: "var(--u2)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--u2)",
+            width: "100%",
+          }}
+        >
+          <Select
+            label="Auto-earn profile"
+            placeholder="Select a profile"
+            data={profileOptions}
+            value={selectedProfileId}
+            onChange={handleProfileSelect}
+          />
+        </Box>
         <Box
           style={{
             display: "flex",
@@ -367,6 +455,7 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
               <TextInput
                 label="Initializer to address"
                 placeholder="0x..."
+                value={settings.initializerTo ?? ""}
                 onChange={(v) =>
                   handleSettingsChange("initializerTo", v.target.value)
                 }
@@ -374,6 +463,7 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
               <TextInput
                 label="Initializer data"
                 placeholder="0x..."
+                value={settings.initializerData ?? ""}
                 onChange={(v) =>
                   handleSettingsChange("initializerData", v.target.value)
                 }
