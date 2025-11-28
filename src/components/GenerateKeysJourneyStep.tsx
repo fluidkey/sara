@@ -39,7 +39,7 @@ export const GenerateKeysJourneyStep = (props: ComponentProps) => {
         props.onKeys(generateKeysFromSignature(signature));
       }
     } catch (e) {
-      console.error(e);
+      // ignore generation errors
     }
   }, [signature]);
 

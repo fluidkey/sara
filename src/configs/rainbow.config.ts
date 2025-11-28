@@ -14,6 +14,18 @@ import {
 // Types
 import { Address, SupportedChainId } from "../types";
 
+const ALL_SUPPORTED_CHAINS = [mainnet, polygon, optimism, arbitrum, base, gnosis, sepolia];
+
+const chainRegistry: Record<SupportedChainId, (typeof ALL_SUPPORTED_CHAINS)[number]> = {
+  1: mainnet,
+  10: optimism,
+  137: polygon,
+  42_161: arbitrum,
+  8453: base,
+  100: gnosis,
+  11_155_111: sepolia,
+};
+
 const httpTransportConfig: HttpTransportConfig = {
   batch: {
     batchSize: 10,
@@ -23,21 +35,46 @@ const httpTransportConfig: HttpTransportConfig = {
   retryDelay: 10000, // attempt to retry after 10 seconds if rate limited or errors for some reason
 };
 
-export function getConfig(transport: string | undefined) {
+type GetConfigOptions = {
+  chainId?: SupportedChainId;
+};
+
+export function getConfig(
+  transport: string | undefined,
+  options?: GetConfigOptions
+) {
+  const selectedChains =
+    options?.chainId && chainRegistry[options.chainId]
+      ? [chainRegistry[options.chainId]]
+      : ALL_SUPPORTED_CHAINS;
+
+  const transports = Object.fromEntries(
+    selectedChains.map((chain) => {
+      const shouldUseCustomTransport =
+        Boolean(transport) &&
+        (!options?.chainId || options.chainId === chain.id);
+
+      const fallbackRpc =
+        chain.rpcUrls?.default?.http?.[0] ?? chain.rpcUrls?.public?.http?.[0];
+
+      const rpcUrl = shouldUseCustomTransport
+        ? (transport as string)
+        : fallbackRpc;
+
+      if (!rpcUrl) {
+        throw new Error(`Missing RPC URL for chain ${chain.id}`);
+      }
+
+      return [chain.id, http(rpcUrl, httpTransportConfig)];
+    })
+  );
+
   return getDefaultConfig({
     appName: "SARA",
     projectId:
       import.meta.env.WALLET_CONNECT_CLOUD_PROJECT_ID ?? "YOUR_PROJECT_ID",
-    chains: [mainnet, polygon, optimism, arbitrum, base, gnosis, sepolia],
-    transports: {
-      [mainnet.id]: http(transport, httpTransportConfig),
-      [polygon.id]: http(transport, httpTransportConfig),
-      [optimism.id]: http(transport, httpTransportConfig),
-      [arbitrum.id]: http(transport, httpTransportConfig),
-      [base.id]: http(transport, httpTransportConfig),
-      [gnosis.id]: http(transport, httpTransportConfig),
-      [sepolia.id]: http(transport, httpTransportConfig),
-    },
+    chains: selectedChains,
+    transports,
   });
 }
 

@@ -33,6 +33,7 @@ import {
   StealthResults,
   SupportedChainId,
 } from "@typing/index";
+import { detectRpcChainId } from "@utils/detectRpcChain";
 import { normalizeForRange, truncateEthAddress } from "@utils/index";
 
 import {
@@ -65,6 +66,8 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
       safeVersion: "1.3.0",
       useDefaultAddress: true,
       exportPrivateKeys: true,
+      customTransport: undefined,
+      tokenBalanceAddress: undefined,
       initializerTo: undefined,
       initializerData: undefined,
     });
@@ -78,13 +81,17 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
     value: string | number | boolean | undefined
   ) => {
     let normalizedValue = value;
-    if (
-      (setting === "initializerTo" || setting === "initializerData") &&
-      typeof value === "string" &&
-      value.trim() === ""
-    ) {
-      normalizedValue = undefined;
+    const shouldTrim =
+      setting === "initializerTo" ||
+      setting === "initializerData" ||
+      setting === "customTransport" ||
+      setting === "tokenBalanceAddress";
+
+    if (shouldTrim && typeof value === "string") {
+      const trimmedValue = value.trim();
+      normalizedValue = trimmedValue.length > 0 ? trimmedValue : undefined;
     }
+
     setSettings((prev) => ({ ...prev, [setting]: normalizedValue }));
   };
 
@@ -146,6 +153,13 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
     if (props.keys?.viewingPrivateKey && props.keys?.spendingPrivateKey) {
       setIsLoading(true);
 
+      const customTransport = settings.customTransport?.trim();
+      let balanceChainId: SupportedChainId | undefined;
+
+      if (customTransport) {
+        balanceChainId = await detectRpcChainId(customTransport);
+      }
+
       const derivedBIP32Node = extractViewingPrivateKeyNode(
         props.keys.viewingPrivateKey,
         0
@@ -159,7 +173,7 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
       const promises: Promise<string[]>[] = [];
       const pendingRows: Omit<
         RecoveredStealthSafeRow,
-        "stealthSafeAddress" | "stealthSignerAddress" | "stealthSignerKey" | "balances" | "status"
+        "stealthSafeAddress" | "stealthSignerAddress" | "stealthSignerKey" | "balances"
       >[] = [];
       let counter = 0;
       for (let i = settings.startNonce; i < settings.endNonce; i++) {
@@ -179,6 +193,7 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
           stealthAddresses: stealthAddresses as `0x${string}`[],
           settings: settings,
           activeChainId: props.activeChainId as SupportedChainId,
+          balanceChainId,
           meta: {
             ephemeralPrivateKey: ephemeralPrivateKey,
             spendingPrivateKey: props.keys.spendingPrivateKey,
@@ -201,6 +216,7 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
           initializerTo: settings.initializerTo,
           initializerData: settings.initializerData,
           threshold: 1,
+          balanceChainId,
         });
 
         const updateProgress = () => {
@@ -215,8 +231,10 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
           );
         };
         promises.push(
-          settings.customTransport
-            ? scheduleRequest<string[]>(createCSVEntry.bind(null, params, updateProgress))
+          customTransport
+            ? scheduleRequest<string[]>(
+                createCSVEntry.bind(null, params, updateProgress)
+              )
             : createCSVEntry(params, updateProgress)
         );
       }
@@ -230,12 +248,30 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
           safeAddress,
           signerAddress,
           signerKey,
-          ethBalance,
-          usdtBalance,
-          usdcBalance,
-          daiBalance,
-          status,
+          nativeLabel,
+          nativeValue,
+          tokenLabel,
+          tokenValue,
         ] = result;
+
+        const resolvedNativeBalance = {
+          label: nativeLabel ?? "Native Balance",
+          value: nativeValue ?? "-",
+        };
+
+        const hasTokenBalance =
+          (tokenLabel && tokenLabel !== "-") ||
+          (tokenValue && tokenValue !== "-");
+
+        const resolvedTokenBalance = hasTokenBalance
+          ? {
+              label:
+                tokenLabel && tokenLabel !== "-"
+                  ? tokenLabel
+                  : "Token Balance",
+              value: tokenValue ?? "-",
+            }
+          : undefined;
 
         return {
           ...meta,
@@ -243,12 +279,9 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
           stealthSignerAddress: signerAddress ?? "-",
           stealthSignerKey: signerKey ?? "-",
           balances: {
-            ETH: ethBalance ?? "-",
-            USDT: usdtBalance ?? "-",
-            USDC: usdcBalance ?? "-",
-            DAI: daiBalance ?? "-",
+            native: resolvedNativeBalance,
+            token: resolvedTokenBalance,
           },
-          status: status ?? "Unknown",
         };
       });
 
@@ -433,8 +466,17 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
                 <TextInput
                   label="Check balances onchain"
                   placeholder="https://rpc.example.com"
+                  value={settings.customTransport ?? ""}
                   onChange={(v) =>
                     handleSettingsChange("customTransport", v.target.value)
+                  }
+                />
+                <TextInput
+                  label="Token balance address"
+                  placeholder="0x..."
+                  value={settings.tokenBalanceAddress ?? ""}
+                  onChange={(v) =>
+                    handleSettingsChange("tokenBalanceAddress", v.target.value)
                   }
                 />
                 <TextInput

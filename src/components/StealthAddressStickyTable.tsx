@@ -45,10 +45,29 @@ export const StealthAddressStickyTable = (props: ComponentProps) => {
 
   useEffect(() => {
     if (error) {
-      console.error(error);
       alert(error); // Lightweight feedback until a nicer UI is added.
     }
   }, [error]);
+
+  const showNativeBalanceColumn = props.items.some(
+    (item) => item.balances.native.value !== "-"
+  );
+  const showTokenBalanceColumn = props.items.some(
+    (item) => (item.balances.token?.value ?? "-") !== "-"
+  );
+  const shouldRenderBalanceColumns =
+    showNativeBalanceColumn || showTokenBalanceColumn;
+
+  const nativeHeaderLabel =
+    props.items.find((item) => item.balances.native.value !== "-")
+      ?.balances.native.label ??
+    props.items[0]?.balances.native.label ??
+    "Native Balance";
+
+  const tokenHeaderLabel =
+    props.items.find(
+      (item) => (item.balances.token?.value ?? "-") !== "-"
+    )?.balances.token?.label ?? "Token Balance";
 
   const rows = props.items.map((item) => {
     const safeInterfaceUrl = buildSafeInterfaceUrl(item, selectedChainId);
@@ -92,15 +111,16 @@ export const StealthAddressStickyTable = (props: ComponentProps) => {
           <CopyWithCheckButton value={item.stealthSignerKey} />
         </div>
       </Table.Td>
-      {props.items.length > 0 && Object.values(props.items[0].balances).some((balance) => balance !== "-") && (
+      {shouldRenderBalanceColumns && (
         <>
-          <Table.Td>{item.balances.ETH}</Table.Td>
-          <Table.Td>{item.balances.USDT}</Table.Td>
-          <Table.Td>{item.balances.USDC}</Table.Td>
-          <Table.Td>{item.balances.DAI}</Table.Td>
+          {showNativeBalanceColumn && (
+            <Table.Td>{item.balances.native.value}</Table.Td>
+          )}
+          {showTokenBalanceColumn && (
+            <Table.Td>{item.balances.token?.value ?? "-"}</Table.Td>
+          )}
         </>
       )}
-      <Table.Td>{item.status}</Table.Td>
         <Table.Td>
           <div
             style={{
@@ -163,17 +183,16 @@ export const StealthAddressStickyTable = (props: ComponentProps) => {
             <Table.Th>Safe Address</Table.Th>
             <Table.Th>Signer Address</Table.Th>
             <Table.Th>Signer Key</Table.Th>
-            {props.items.length > 0 && Object.values(props.items[0].balances).some(
-              (balance) => balance !== "-"
-            ) && (
+            {shouldRenderBalanceColumns && (
               <>
-                <Table.Th>ETH</Table.Th>
-                <Table.Th>USDC</Table.Th>
-                <Table.Th>USDT</Table.Th>
-                <Table.Th>DAI</Table.Th>
+                {showNativeBalanceColumn && (
+                  <Table.Th>{nativeHeaderLabel}</Table.Th>
+                )}
+                {showTokenBalanceColumn && (
+                  <Table.Th>{tokenHeaderLabel}</Table.Th>
+                )}
               </>
             )}
-            <Table.Th>Status</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>

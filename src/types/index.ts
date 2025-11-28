@@ -16,6 +16,7 @@ export type FluidKeyStealthSafeAddressGenerationParams = {
   useDefaultAddress: boolean;
   exportPrivateKeys?: boolean;
   customTransport?: string | undefined;
+  tokenBalanceAddress?: Address | undefined;
   initializerTo?: Address | undefined;
   initializerData?: Address | undefined;
 };
@@ -25,6 +26,7 @@ export type CreateCSVEntryParams = {
   stealthAddresses: Address[];
   settings: FluidKeyStealthSafeAddressGenerationParams;
   activeChainId: SupportedChainId;
+  balanceChainId?: SupportedChainId;
   meta: {
     ephemeralPrivateKey: Address;
     spendingPrivateKey: Address;
@@ -32,11 +34,14 @@ export type CreateCSVEntryParams = {
   };
 };
 
+export type BalanceValue = {
+  label: string;
+  value: string;
+};
+
 export type StealthAddressBalances = {
-  ETH: string;
-  USDT: string;
-  USDC: string;
-  DAI: string;
+  native: BalanceValue;
+  token?: BalanceValue;
 };
 
 export type RecoveredStealthSafeRow = {
@@ -46,7 +51,6 @@ export type RecoveredStealthSafeRow = {
   stealthSignerKey: string;
   stealthAddresses: Address[];
   balances: StealthAddressBalances;
-  status: string;
   chainId: number;
   deploymentChainId: SupportedChainId;
   safeVersion: SafeVersion;
@@ -54,6 +58,7 @@ export type RecoveredStealthSafeRow = {
   initializerTo?: Address;
   initializerData?: Address;
   threshold: number;
+  balanceChainId?: SupportedChainId;
 };
 
 export type StealthResults = {

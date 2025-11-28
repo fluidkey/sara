@@ -64,37 +64,49 @@ export const useDeployStealthSafe = () => {
   const { isConnected } = useAccount();
   const connectedChainId = useChainId();
   const publicClient = usePublicClient({ chainId: connectedChainId });
-  const { data: walletClient } = useWalletClient();
+  const { data: walletClient, refetch: refetchWalletClient } = useWalletClient({
+    chainId: connectedChainId,
+  });
   const [pendingNonce, setPendingNonce] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const deploy = useCallback(
     async (row: RecoveredStealthSafeRow) => {
-      if (!walletClient || !walletClient.account || !walletClient.chain) {
-        throw new Error("Wallet not connected.");
-      }
-
-      if (!publicClient) {
-        throw new Error("Public client unavailable.");
-      }
-
-      if (!isConnected) {
-        throw new Error("Connect your wallet to deploy the Safe.");
-      }
-
-      if (connectedChainId && connectedChainId !== row.deploymentChainId) {
-        throw new Error(
-          "Please switch your wallet to the chain that matches this entry."
-        );
-      }
-
       setPendingNonce(row.nonce);
       setError(null);
 
       try {
+        const refreshedWalletClient = await refetchWalletClient();
+        const activeWalletClient = refreshedWalletClient.data ?? walletClient;
+
+        if (
+          !activeWalletClient ||
+          !activeWalletClient.account ||
+          !activeWalletClient.chain
+        ) {
+          throw new Error("Wallet not connected.");
+        }
+
+        if (!publicClient) {
+          throw new Error("Public client unavailable.");
+        }
+
+        if (!isConnected) {
+          throw new Error("Connect your wallet to deploy the Safe.");
+        }
+
+        const activeChainId =
+          (activeWalletClient.chain?.id as SupportedChainId | undefined) ??
+          row.deploymentChainId;
+
         const chainIdForContracts = row.useDefaultAddress
           ? 1
-          : row.deploymentChainId;
+          : activeChainId;
+
+        const deploymentRow: RecoveredStealthSafeRow = {
+          ...row,
+          deploymentChainId: activeChainId,
+        };
 
         const {
           proxyFactory,
@@ -102,7 +114,7 @@ export const useDeployStealthSafe = () => {
           fallbackHandlerAddress,
           proxyFactoryAddress,
           safeSingletonAddress,
-        } = getDeploymentAddresses(row, chainIdForContracts);
+        } = getDeploymentAddresses(deploymentRow, chainIdForContracts);
 
         const initializer = encodeFunctionData({
           abi: safeSingleton.abi,
@@ -120,15 +132,14 @@ export const useDeployStealthSafe = () => {
         });
 
         const { request } = await publicClient.simulateContract({
-          account: walletClient.account.address,
+          account: activeWalletClient.account.address,
           address: proxyFactoryAddress as `0x${string}`,
           abi: proxyFactory.abi,
           functionName: CREATE_PROXY_FUNCTION,
           args: [safeSingletonAddress as `0x${string}`, initializer, 0n],
-          chain: walletClient.chain,
         });
 
-        await walletClient.writeContract(request);
+        await activeWalletClient.writeContract(request);
       } catch (deployError) {
         const message =
           deployError instanceof Error
@@ -140,7 +151,13 @@ export const useDeployStealthSafe = () => {
         setPendingNonce(null);
       }
     },
-    [connectedChainId, isConnected, publicClient, walletClient]
+    [
+      connectedChainId,
+      isConnected,
+      publicClient,
+      walletClient,
+      refetchWalletClient,
+    ]
   );
 
   return {
