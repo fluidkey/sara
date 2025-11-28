@@ -31,3 +31,32 @@ export type CreateCSVEntryParams = {
     spendingPublicKey: Address;
   };
 };
+
+export type StealthAddressBalances = {
+  ETH: string;
+  USDT: string;
+  USDC: string;
+  DAI: string;
+};
+
+export type RecoveredStealthSafeRow = {
+  nonce: number;
+  stealthSafeAddress: string;
+  stealthSignerAddress: string;
+  stealthSignerKey: string;
+  stealthAddresses: Address[];
+  balances: StealthAddressBalances;
+  status: string;
+  chainId: number;
+  deploymentChainId: SupportedChainId;
+  safeVersion: SafeVersion;
+  useDefaultAddress: boolean;
+  initializerTo?: Address;
+  initializerData?: Address;
+  threshold: number;
+};
+
+export type StealthResults = {
+  csv: string[][];
+  rows: RecoveredStealthSafeRow[];
+};

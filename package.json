@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@fluidkey/stealth-account-kit": "1.1.0",
+    "@safe-global/safe-deployments": "1.29.0",
     "@mantine/core": "7.6.1",
     "@mantine/hooks": "7.6.1",
     "@rainbow-me/rainbowkit": "2.0.1",

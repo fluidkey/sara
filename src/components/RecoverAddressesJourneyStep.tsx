@@ -29,6 +29,8 @@ import {
 import {
   FluidKeyMetaStealthKeyPair,
   FluidKeyStealthSafeAddressGenerationParams,
+  RecoveredStealthSafeRow,
+  StealthResults,
   SupportedChainId,
 } from "@typing/index";
 import { normalizeForRange, truncateEthAddress } from "@utils/index";
@@ -43,7 +45,7 @@ import {
 interface ComponentProps {
   activeChainId: number;
   keys: FluidKeyMetaStealthKeyPair | undefined;
-  onStealthDataProcessed: (data: string[][]) => void;
+  onStealthDataProcessed: (data: StealthResults) => void;
   onBack: () => void;
 }
 
@@ -66,9 +68,10 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
       initializerTo: undefined,
       initializerData: undefined,
     });
-  const [stealthAddressData, setStealthAddressData] = useState<string[][]>([
-    defaultExportHeaders,
-  ]);
+  const [stealthResults, setStealthResults] = useState<StealthResults>({
+    csv: [defaultExportHeaders],
+    rows: [],
+  });
 
   const handleSettingsChange = (
     setting: keyof FluidKeyStealthSafeAddressGenerationParams,
@@ -139,7 +142,7 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
   };
 
   const recoverStealthAccounts = async () => {
-    setStealthAddressData([defaultExportHeaders]);
+    setStealthResults({ csv: [defaultExportHeaders], rows: [] });
     if (props.keys?.viewingPrivateKey && props.keys?.spendingPrivateKey) {
       setIsLoading(true);
 
@@ -154,6 +157,10 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
       const spendingPublicKey = spendingAccount.publicKey;
 
       const promises: Promise<string[]>[] = [];
+      const pendingRows: Omit<
+        RecoveredStealthSafeRow,
+        "stealthSafeAddress" | "stealthSignerAddress" | "stealthSignerKey" | "balances" | "status"
+      >[] = [];
       let counter = 0;
       for (let i = settings.startNonce; i < settings.endNonce; i++) {
         const { ephemeralPrivateKey } = generateEphemeralPrivateKey({
@@ -179,6 +186,23 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
           },
         };
 
+        const resolvedChainId =
+          settings.chainId > 0
+            ? (settings.chainId as SupportedChainId)
+            : (props.activeChainId as SupportedChainId);
+
+        pendingRows.push({
+          nonce: i,
+          stealthAddresses: stealthAddresses as `0x${string}`[],
+          chainId: settings.chainId,
+          deploymentChainId: resolvedChainId,
+          safeVersion: settings.safeVersion,
+          useDefaultAddress: settings.useDefaultAddress,
+          initializerTo: settings.initializerTo,
+          initializerData: settings.initializerData,
+          threshold: 1,
+        });
+
         const updateProgress = () => {
           setProgress(
             normalizeForRange(
@@ -198,9 +222,37 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
       }
 
       const results = await Promise.all(promises);
-      setStealthAddressData((prev) => {
-        return [...prev, ...results];
+      const csv = [defaultExportHeaders, ...results];
+      const rows: RecoveredStealthSafeRow[] = results.map((result, index) => {
+        const meta = pendingRows[index];
+        const [
+          ,
+          safeAddress,
+          signerAddress,
+          signerKey,
+          ethBalance,
+          usdtBalance,
+          usdcBalance,
+          daiBalance,
+          status,
+        ] = result;
+
+        return {
+          ...meta,
+          stealthSafeAddress: safeAddress ?? "-",
+          stealthSignerAddress: signerAddress ?? "-",
+          stealthSignerKey: signerKey ?? "-",
+          balances: {
+            ETH: ethBalance ?? "-",
+            USDT: usdtBalance ?? "-",
+            USDC: usdcBalance ?? "-",
+            DAI: daiBalance ?? "-",
+          },
+          status: status ?? "Unknown",
+        };
       });
+
+      setStealthResults({ csv, rows });
       setIsLoading(false);
     }
   };
@@ -221,10 +273,10 @@ export const RecoverAddressesJourneyStep = (props: ComponentProps) => {
   }, [settings]);
 
   useEffect(() => {
-    if (stealthAddressData.length > 1) {
-      props.onStealthDataProcessed(stealthAddressData);
+    if (stealthResults.csv.length > 1) {
+      props.onStealthDataProcessed(stealthResults);
     }
-  }, [stealthAddressData]);
+  }, [stealthResults]);
 
   return (
     <>

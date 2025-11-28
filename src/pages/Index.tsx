@@ -10,11 +10,11 @@ import { Footer } from "@components/common/Footer";
 import { Header } from "@components/common/Header";
 import { Section } from "@components/common/Section";
 
-import { Address } from "@typing/index";
+import { RecoveredStealthSafeRow } from "@typing/index";
 
 export const Index = () => {
   const [activeStep, setActiveStep] = useState<number>(0);
-  const [stealthAddressData, setStealthAddressData] = useState<string[][]>([]);
+  const [stealthRows, setStealthRows] = useState<RecoveredStealthSafeRow[]>([]);
   const deployedGitCommit = __APP_COMMIT__ || 'main';
 
   const GITHUB_URL = `https://github.com/shahnami/sara`;
@@ -32,29 +32,11 @@ export const Index = () => {
         <Card>
           <Journey
             onStepChanged={(step: number) => setActiveStep(step)}
-            onStealthDataProcessed={(data: string[][]) =>
-              setStealthAddressData(data)
-            }
+            onStealthDataProcessed={(data) => setStealthRows(data.rows)}
           />
         </Card>
         <Card hidden={activeStep < 3}>
-          <StealthAddressStickyTable
-            items={stealthAddressData.slice(1).map((v) => {
-              return {
-                nonce: v[0],
-                stealthSafeAddress: v[1] as Address,
-                stealthSignerAddress: v[2] as Address,
-                stealthSignerKey: v[3] as Address,
-                balances: {
-                  ETH: v[4],
-                  USDT: v[5],
-                  USDC: v[6],
-                  DAI: v[7],
-                },
-                status: v[8],
-              };
-            })}
-          />
+          <StealthAddressStickyTable items={stealthRows} />
         </Card>
       </Section>
       <Footer>
