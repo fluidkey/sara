@@ -14,17 +14,15 @@ import {
 // Types
 import { Address, SupportedChainId } from "../types";
 
-const ALL_SUPPORTED_CHAINS = [mainnet, polygon, optimism, arbitrum, base, gnosis, sepolia];
-
-const chainRegistry: Record<SupportedChainId, (typeof ALL_SUPPORTED_CHAINS)[number]> = {
-  1: mainnet,
-  10: optimism,
-  137: polygon,
-  42_161: arbitrum,
-  8453: base,
-  100: gnosis,
-  11_155_111: sepolia,
-};
+const ALL_SUPPORTED_CHAINS = [
+  mainnet,
+  polygon,
+  optimism,
+  arbitrum,
+  base,
+  gnosis,
+  sepolia,
+] as const;
 
 const httpTransportConfig: HttpTransportConfig = {
   batch: {
@@ -43,19 +41,13 @@ export function getConfig(
   transport: string | undefined,
   options?: GetConfigOptions
 ) {
-  const selectedChains =
-    options?.chainId && chainRegistry[options.chainId]
-      ? [chainRegistry[options.chainId]]
-      : ALL_SUPPORTED_CHAINS;
-
   const transports = Object.fromEntries(
-    selectedChains.map((chain) => {
+    ALL_SUPPORTED_CHAINS.map((chain) => {
       const shouldUseCustomTransport =
         Boolean(transport) &&
         (!options?.chainId || options.chainId === chain.id);
 
-      const fallbackRpc =
-        chain.rpcUrls?.default?.http?.[0] ?? chain.rpcUrls?.public?.http?.[0];
+      const fallbackRpc = chain.rpcUrls?.default?.http?.[0];
 
       const rpcUrl = shouldUseCustomTransport
         ? (transport as string)
@@ -73,7 +65,7 @@ export function getConfig(
     appName: "SARA",
     projectId:
       import.meta.env.WALLET_CONNECT_CLOUD_PROJECT_ID ?? "YOUR_PROJECT_ID",
-    chains: selectedChains,
+    chains: ALL_SUPPORTED_CHAINS,
     transports,
   });
 }

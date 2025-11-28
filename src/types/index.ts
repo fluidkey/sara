@@ -65,3 +65,10 @@ export type StealthResults = {
   csv: string[][];
   rows: RecoveredStealthSafeRow[];
 };
+
+export type BalanceRequirement = {
+  chainId: number;
+  rpcUrl?: string;
+  tokenAddress?: Address;
+  label?: string;
+};

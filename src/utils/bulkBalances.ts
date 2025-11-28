@@ -7,11 +7,20 @@ import Bottleneck from "bottleneck";
 import type { Chain } from "viem";
 import {
   createPublicClient,
+  defineChain,
   erc20Abi,
   formatUnits,
   http,
 } from "viem";
-import * as chains from "viem/chains";
+import {
+  arbitrum,
+  base,
+  gnosis,
+  mainnet,
+  optimism,
+  polygon,
+  sepolia,
+} from "viem/chains";
 
 const limiter = new Bottleneck({
   minTime: 200,
@@ -22,32 +31,42 @@ export const scheduleRequest = <T>(call: () => Promise<T>) => {
   return limiter.schedule(call);
 };
 
-const getChainConfig = (chainId: number) => {
-  for (const chain of Object.values(chains)) {
-    if (chain.id === chainId) {
-      return chain;
-    }
-  }
-  return undefined;
+const KNOWN_CHAINS: Record<number, Chain> = {
+  [mainnet.id]: mainnet,
+  [polygon.id]: polygon,
+  [optimism.id]: optimism,
+  [arbitrum.id]: arbitrum,
+  [base.id]: base,
+  [gnosis.id]: gnosis,
+  [sepolia.id]: sepolia,
 };
 
-const buildFallbackChain = (
-  chainId: number,
-  rpcUrl?: string
-): Chain => ({
-  id: chainId,
-  name: `Chain ${chainId}`,
-  network: `chain-${chainId}`,
-  nativeCurrency: {
-    name: "Native",
-    symbol: "Native",
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: { http: rpcUrl ? [rpcUrl] : [] },
-    public: { http: rpcUrl ? [rpcUrl] : [] },
-  },
-});
+const getChainConfig = (chainId: number) => {
+  return KNOWN_CHAINS[chainId];
+};
+
+const buildFallbackChain = (chainId: number, rpcUrl?: string) =>
+  defineChain({
+    id: chainId,
+    name: `Chain ${chainId}`,
+    network: `chain-${chainId}`,
+    nativeCurrency: {
+      name: "Native",
+      symbol: "Native",
+      decimals: 18,
+    },
+    rpcUrls: {
+      default: { http: rpcUrl ? [rpcUrl] : [] },
+    },
+    blockExplorers: rpcUrl
+      ? {
+          default: {
+            name: "Explorer",
+            url: rpcUrl,
+          },
+        }
+      : undefined,
+  });
 
 const isAddress = (value: string): value is Address => {
   return /^0x[a-fA-F0-9]{40}$/.test(value);
@@ -61,14 +80,12 @@ export type BalanceColumnResult = {
 
 const buildTransportUrl = (
   requirement: BalanceRequirement,
-  chainConfig: (typeof chains)[keyof typeof chains]
+  chainConfig: Chain
 ) => {
   if (requirement.rpcUrl && requirement.rpcUrl.trim().length > 0) {
     return http(requirement.rpcUrl);
   }
-  const defaultRpc =
-    chainConfig.rpcUrls?.default?.http?.[0] ??
-    chainConfig.rpcUrls?.public?.http?.[0];
+  const defaultRpc = chainConfig.rpcUrls?.default?.http?.[0];
   if (!defaultRpc) {
     throw new Error(`No RPC URL configured for chain ${chainConfig.id}`);
   }
@@ -226,7 +243,8 @@ export const fetchBulkBalances = async ({
 
   for (const requirement of requirements) {
     const initialChainConfig = getChainConfig(requirement.chainId);
-    const fallbackChain = initialChainConfig ??
+    const fallbackChain =
+      initialChainConfig ??
       buildFallbackChain(requirement.chainId, requirement.rpcUrl);
 
     const transport = buildTransportUrl(requirement, fallbackChain);

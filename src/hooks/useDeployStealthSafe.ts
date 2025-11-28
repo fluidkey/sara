@@ -12,7 +12,7 @@ import {
   useWalletClient,
 } from "wagmi";
 
-import { RecoveredStealthSafeRow } from "@typing/index";
+import { RecoveredStealthSafeRow, SupportedChainId } from "@typing/index";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const CREATE_PROXY_FUNCTION = "createProxyWithNonce" as const;
