@@ -36,7 +36,7 @@ const buildSafeInterfaceUrl = (
   if (!prefix || !row.stealthSafeAddress.startsWith("0x")) {
     return undefined;
   }
-  return `https://app.safe.global/balances?safe=${prefix}:${row.stealthSafeAddress}`;
+  return `https://eternalsafe.eth.limo/balances?safe=${prefix}:${row.stealthSafeAddress}`;
 };
 
 export const StealthAddressStickyTable = (props: ComponentProps) => {

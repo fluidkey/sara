@@ -1,6 +1,6 @@
-import { Button } from "@mantine/core";
+import { Alert, Button } from "@mantine/core";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { IconBrandGithub } from "@tabler/icons-react";
+import { IconAlertTriangle, IconBrandGithub } from "@tabler/icons-react";
 import { useState } from "react";
 
 import { Journey } from "@components/Journey";
@@ -38,6 +38,16 @@ export const Index = () => {
         <Card hidden={activeStep < 3}>
           <StealthAddressStickyTable items={stealthRows} />
         </Card>
+        <Alert
+          icon={<IconAlertTriangle size={16} />}
+          color="yellow"
+          variant="light"
+          style={{ marginTop: "var(--u3)" }}
+        >
+          Moving funds out of a stealth address without using the Fluidkey UI may
+          lead to loss of functionality within the Fluidkey UI. Only use this
+          interface to verify addresses or as a last resort to recover funds.
+        </Alert>
       </Section>
       <Footer>
         <p>
