@@ -1,6 +1,6 @@
-import { Alert, Button } from "@mantine/core";
+import { Alert, Button, Group } from "@mantine/core";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { IconAlertTriangle, IconBrandGithub } from "@tabler/icons-react";
+import { IconAlertTriangle, IconBrandGithub, IconPlayerPlay } from "@tabler/icons-react";
 import { useState } from "react";
 
 import { Journey } from "@components/Journey";
@@ -18,8 +18,12 @@ export const Index = () => {
   const deployedGitCommit = __APP_COMMIT__ || 'main';
 
   const GITHUB_URL = `https://github.com/shahnami/sara`;
+  const TUTORIAL_URL = `https://www.youtube.com/watch?v=HWy6-jXqemg`;
   const handleGithubRedirect = () => {
     open(GITHUB_URL, "_blank");
+  };
+  const handleTutorialRedirect = () => {
+    open(TUTORIAL_URL, "_blank");
   };
 
   return (
@@ -51,11 +55,10 @@ export const Index = () => {
       </Section>
       <Footer>
         <p>
-          Learn more about the mission, values, and the team behind{" "}
+          Learn more about{" "}
           <a href="https://fluidkey.com" target="_blank">
             Fluidkey
           </a>
-          .
         </p>
         <p>
           <i>Latest deployed commit</i>:{" "}
@@ -63,7 +66,14 @@ export const Index = () => {
             {deployedGitCommit?.substring(0, 7)}
           </a>
         </p>
-        <p>
+        <Group gap="sm">
+          <Button
+            color="#191919"
+            onClick={handleTutorialRedirect}
+            leftSection={<IconPlayerPlay />}
+          >
+            Watch Tutorial
+          </Button>
           <Button
             color="#191919"
             onClick={handleGithubRedirect}
@@ -71,7 +81,7 @@ export const Index = () => {
           >
             GitHub
           </Button>
-        </p>
+        </Group>
       </Footer>
     </>
   );
